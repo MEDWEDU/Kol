@@ -6,4 +6,5 @@ export const updateMeSchema = Joi.object({
   organization: Joi.string().trim().max(100).allow(''),
   position: Joi.string().trim().max(100).allow(''),
   bio: Joi.string().trim().max(500).allow(''),
+  notificationsEnabled: Joi.boolean(),
 });

@@ -3,6 +3,7 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
@@ -31,6 +32,9 @@ export function createApp() {
       optionsSuccessStatus: 204,
     }),
   );
+
+  const uploadDir = path.resolve(process.cwd(), process.env.UPLOAD_DIR ?? 'uploads');
+  app.use('/uploads', express.static(uploadDir));
 
   app.use('/api', routes);
 

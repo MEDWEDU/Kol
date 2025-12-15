@@ -58,3 +58,77 @@ cp client/.env.example client/.env
 ```
 
 See each package’s `.env.example` for documented variables.
+
+## API: Auth & Users
+
+Base URL: `http://localhost:5000/api`
+
+### Endpoints
+
+| Method | Path | Auth | Content-Type | Description |
+| --- | --- | --- | --- | --- |
+| POST | `/auth/register` | No | `multipart/form-data` | Create user, optional `avatar` upload (JPG/PNG/WEBP, max 5 MB). Sets HttpOnly auth cookie. |
+| POST | `/auth/login` | No | `application/json` | Login and set HttpOnly auth cookie. |
+| POST | `/auth/logout` | No | - | Clear auth cookie. |
+| GET | `/auth/session` | Cookie | - | Check current session and return the current user. |
+| POST | `/auth/refresh` | Cookie | - | Re-issue the auth cookie and return the current user. |
+| GET | `/users/me` | Cookie | - | Get current user profile. |
+| PUT | `/users/me` | Cookie | `multipart/form-data` | Update `name/email/organization/position/bio/avatar`. |
+| GET | `/users/:id` | No | - | Get a public user profile by id. |
+
+### Validation / error responses
+
+- `400` for invalid payloads:
+
+```json
+{
+  "message": "Validation error",
+  "details": [{ "path": ["email"], "message": "\"email\" must be a valid email" }]
+}
+```
+
+- `401` when missing/invalid auth cookie:
+
+```json
+{ "message": "Not authenticated" }
+```
+
+### Manual testing (curl)
+
+1) Start MongoDB and the server:
+
+```bash
+cp server/.env.example server/.env
+npm -w server run dev
+```
+
+2) Register (stores cookie to `cookie.txt`):
+
+```bash
+curl -i -c cookie.txt \
+  -F "email=test@example.com" \
+  -F "password=passw0rd123" \
+  -F "name=Test User" \
+  -F "avatar=@/absolute/path/to/avatar.png" \
+  http://localhost:5000/api/auth/register
+```
+
+3) Check session:
+
+```bash
+curl -i -b cookie.txt http://localhost:5000/api/auth/session
+```
+
+4) Update profile:
+
+```bash
+curl -i -b cookie.txt -X PUT \
+  -F "bio=Hello from curl" \
+  http://localhost:5000/api/users/me
+```
+
+5) Logout:
+
+```bash
+curl -i -b cookie.txt -X POST http://localhost:5000/api/auth/logout
+```

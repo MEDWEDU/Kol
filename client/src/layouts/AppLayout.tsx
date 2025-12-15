@@ -13,9 +13,9 @@ export function AppLayout() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50">
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+    <div className="flex h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 overflow-hidden">
+      <header className="shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="mx-auto flex w-full items-center justify-between gap-3 px-4 py-2">
           <div className="flex items-center gap-3">
             <div className="text-lg font-semibold">KolTechat</div>
             {user?.avatarUrl ? (
@@ -27,7 +27,7 @@ export function AppLayout() {
             ) : (
               <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-800" />
             )}
-            <div className="min-w-0">
+            <div className="min-w-0 hidden sm:block">
               <div className="truncate text-sm font-medium">{user?.name || 'Your account'}</div>
               <div className="truncate text-xs text-slate-500 dark:text-slate-400">
                 {user?.email}
@@ -52,6 +52,7 @@ export function AppLayout() {
             <Button
               type="button"
               variant="secondary"
+              size="sm"
               onClick={async () => {
                 try {
                   await logout();
@@ -69,7 +70,7 @@ export function AppLayout() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-8">
+      <main className="flex-1 overflow-hidden relative flex">
         <Outlet />
       </main>
     </div>

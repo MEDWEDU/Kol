@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
 import mongoose from 'mongoose';
 
-import { ConversationModel, MessageModel } from '../models';
+import { ConversationModel, MessageModel, UserModel } from '../models';
 import { HttpError } from '../utils/HttpError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { ok } from '../utils/responses';
@@ -15,7 +15,59 @@ export const listConversations: RequestHandler = asyncHandler(async (req, res) =
     .sort({ updatedAt: -1 })
     .lean();
 
-  ok(res, { conversations });
+  if (conversations.length === 0) {
+    ok(res, { conversations: [] });
+    return;
+  }
+
+  // Populate participants
+  const allParticipantIds = Array.from(new Set(conversations.flatMap((c) => c.participantIds)));
+  const users = await UserModel.find({ _id: { $in: allParticipantIds } }).lean();
+  const userMap = new Map(users.map((u) => [u._id.toString(), u]));
+
+  // Get unread counts
+  const conversationIds = conversations.map((c) => c._id.toString());
+  const unreadCounts = await MessageModel.aggregate([
+    {
+      $match: {
+        conversationId: { $in: conversationIds },
+        recipientId: req.auth.userId,
+        isRead: false,
+      },
+    },
+    { $group: { _id: '$conversationId', count: { $sum: 1 } } },
+  ]);
+  
+  const unreadMap = new Map(unreadCounts.map((u) => [u._id.toString(), u.count]));
+
+  const populatedConversations = conversations.map((c) => {
+    const cid = c._id.toString();
+    return {
+      id: cid,
+      participantIds: c.participantIds,
+      lastMessage: c.lastMessage,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+      participants: c.participantIds
+        .map((id) => {
+          const u = userMap.get(id);
+          return u
+            ? {
+                id: u._id.toString(),
+                name: u.name,
+                email: u.email,
+                avatarUrl: u.avatarUrl,
+                organization: u.organization,
+                position: u.position,
+              }
+            : null;
+        })
+        .filter(Boolean),
+      unreadCount: unreadMap.get(cid) || 0,
+    };
+  });
+
+  ok(res, { conversations: populatedConversations });
 });
 
 export const startConversation: RequestHandler = asyncHandler(async (req, res) => {
@@ -37,13 +89,43 @@ export const startConversation: RequestHandler = asyncHandler(async (req, res) =
     participantIds: { $all: sortedIds },
   });
 
+  let isNew = false;
   if (!conversation) {
     conversation = await ConversationModel.create({
       participantIds: sortedIds,
     });
+    isNew = true;
   }
 
-  ok(res, { conversation }, conversation ? 200 : 201);
+  // Populate
+  const users = await UserModel.find({ _id: { $in: sortedIds } }).lean();
+  const userMap = new Map(users.map((u) => [u._id.toString(), u]));
+
+  const populatedConversation = {
+      id: conversation._id.toString(),
+      participantIds: conversation.participantIds,
+      lastMessage: conversation.lastMessage,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      participants: conversation.participantIds
+        .map((id) => {
+          const u = userMap.get(id);
+          return u
+            ? {
+                id: u._id.toString(),
+                name: u.name,
+                email: u.email,
+                avatarUrl: u.avatarUrl,
+                organization: u.organization,
+                position: u.position,
+              }
+            : null;
+        })
+        .filter(Boolean),
+      unreadCount: 0,
+  };
+
+  ok(res, { conversation: populatedConversation }, isNew ? 201 : 200);
 });
 
 export const getConversationMessages: RequestHandler = asyncHandler(async (req, res) => {

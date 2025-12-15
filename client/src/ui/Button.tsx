@@ -1,14 +1,16 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'danger';
+type Size = 'sm' | 'md' | 'lg';
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
+  size?: Size;
 };
 
-export function Button({ className = '', variant = 'primary', ...props }: Props) {
+export function Button({ className = '', variant = 'primary', size = 'md', ...props }: Props) {
   const base =
-    'inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60';
+    'inline-flex items-center justify-center gap-2 rounded-md font-medium transition disabled:cursor-not-allowed disabled:opacity-60';
 
   const byVariant: Record<Variant, string> = {
     primary:
@@ -19,5 +21,11 @@ export function Button({ className = '', variant = 'primary', ...props }: Props)
       'bg-rose-600 text-white hover:bg-rose-500 dark:bg-rose-500 dark:hover:bg-rose-400',
   };
 
-  return <button className={`${base} ${byVariant[variant]} ${className}`} {...props} />;
+  const bySize: Record<Size, string> = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-base',
+  };
+
+  return <button className={`${base} ${byVariant[variant]} ${bySize[size]} ${className}`} {...props} />;
 }

@@ -72,8 +72,8 @@ Base URL: `http://localhost:5000/api`
 | POST | `/auth/logout` | No | - | Clear auth cookie. |
 | GET | `/auth/session` | Cookie | - | Check current session and return the current user. |
 | POST | `/auth/refresh` | Cookie | - | Re-issue the auth cookie and return the current user. |
-| GET | `/users/me` | Cookie | - | Get current user profile. |
-| PUT | `/users/me` | Cookie | `multipart/form-data` | Update `name/email/organization/position/bio/avatar`. |
+| GET | `/users/me` | Cookie | - | Get current user profile (includes `notificationsEnabled` flag). |
+| PUT | `/users/me` | Cookie | `multipart/form-data` | Update `name/email/organization/position/bio/avatar/notificationsEnabled`. |
 | GET | `/users/:id` | No | - | Get a public user profile by id. |
 
 ### Validation / error responses
@@ -172,3 +172,28 @@ Connect to the Socket.IO server at `http://localhost:5000` with `reconnection: t
 | `user:typing` | `{ userId }` | A participant is typing. |
 | `user:stoppedTyping` | `{ userId }` | A participant stopped typing. |
 | `error` | `{ message: string }` | Error message from the server. |
+
+## API: Notifications (Web Push)
+
+Base URL: `http://localhost:5000/api`
+
+### Endpoints
+
+| Method | Path | Auth | Content-Type | Description |
+| --- | --- | --- | --- | --- |
+| GET | `/notifications/public-key` | Cookie | - | Get the VAPID public key for push subscriptions. |
+| POST | `/notifications/subscribe` | Cookie | `application/json` | Subscribe to push notifications. Body: `{ endpoint, keys: { p256dh, auth } }` |
+| DELETE | `/notifications/subscribe` | Cookie | `application/json` | Unsubscribe from push notifications. Body: `{ endpoint? }` (omit endpoint to clear all) |
+
+### Environment Variables
+
+To enable Web Push notifications, set these variables in `server/.env`:
+
+```bash
+# Generate with: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=your_public_key_here
+VAPID_PRIVATE_KEY=your_private_key_here
+PUSH_CONTACT_EMAIL=mailto:admin@example.com
+```
+
+Without these variables, the server will start but push notifications will be disabled with a warning.

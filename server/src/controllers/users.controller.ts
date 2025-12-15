@@ -23,12 +23,13 @@ export const updateMe: RequestHandler = asyncHandler(async (req, res) => {
   const updates: mongoose.UpdateQuery<UserDocument> = { $set: {} };
   const $set = updates.$set as Partial<UserDocument>;
 
-  const { email, name, organization, position, bio } = req.body as {
+  const { email, name, organization, position, bio, notificationsEnabled } = req.body as {
     email?: string;
     name?: string;
     organization?: string;
     position?: string;
     bio?: string;
+    notificationsEnabled?: boolean;
   };
 
   if (typeof email === 'string') {
@@ -50,6 +51,16 @@ export const updateMe: RequestHandler = asyncHandler(async (req, res) => {
   if (typeof organization === 'string') $set.organization = organization;
   if (typeof position === 'string') $set.position = position;
   if (typeof bio === 'string') $set.bio = bio;
+  if (typeof notificationsEnabled === 'boolean') {
+    $set.notificationsEnabled = notificationsEnabled;
+    // Clear subscriptions when notifications are turned off
+    if (!notificationsEnabled) {
+      updates.$set = {
+        ...updates.$set,
+        webPushSubscriptions: [],
+      } as any;
+    }
+  }
 
   if (req.file) {
     $set.avatarUrl = `/uploads/${req.file.filename}`;

@@ -4,12 +4,14 @@ import { Server } from 'socket.io';
 
 import { verifyAccessToken } from '../utils/jwt';
 import { getAuthCookieName } from '../utils/cookies';
-import { ConversationModel, MessageModel } from '../models';
+import { ConversationModel, MessageModel, UserModel } from '../models';
+import { sendMessageNotification, sendPresenceNotification, isWebPushEnabled } from './push.service';
 
 const userPresenceMap = new Map<string, Set<string>>();
+let io: Server | null = null;
 
 export function initializeSocketIO(httpServer: HTTPServer) {
-  const io = new Server(httpServer, {
+  io = new Server(httpServer, {
     cors: {
       origin: process.env.CLIENT_URL
         ? process.env.CLIENT_URL.split(',').map((o) => o.trim())
@@ -57,7 +59,15 @@ export function initializeSocketIO(httpServer: HTTPServer) {
     }
     userPresenceMap.get(userId)!.add(socket.id);
 
-    io.emit('user:status', { userId, isOnline: true });
+    // Emit presence notification for newly online users
+    // Throttle to avoid noise - only notify if this is the first socket connection
+    if (userPresenceMap.get(userId)!.size === 1 && isWebPushEnabled() && io) {
+      emitPresenceNotification(userId, true).catch(console.warn);
+    }
+
+    if (io) {
+      io.emit('user:status', { userId, isOnline: true });
+    }
 
     socket.on('join:conversation', (conversationId: string) => {
       socket.join(`conversation:${conversationId}`);
@@ -103,16 +113,40 @@ export function initializeSocketIO(httpServer: HTTPServer) {
         };
         await conversation.save();
 
-        io.to(`conversation:${conversationId}`).emit('message:new', {
-          id: message.id,
-          conversationId,
-          senderId: userId,
-          recipientId,
-          text,
-          attachments: [],
-          isRead: false,
-          createdAt: message.createdAt,
-        });
+        if (io) {
+          io.to(`conversation:${conversationId}`).emit('message:new', {
+            id: message.id,
+            conversationId,
+            senderId: userId,
+            recipientId,
+            text,
+            attachments: [],
+            isRead: false,
+            createdAt: message.createdAt,
+          });
+        }
+
+        // Send push notification if recipient is offline and notifications are enabled
+        const recipientOnline = userPresenceMap.has(recipientId);
+        if (!recipientOnline && isWebPushEnabled()) {
+          try {
+            const recipient = await UserModel.findById(recipientId);
+            const sender = await UserModel.findById(userId);
+            
+            if (recipient && sender && recipient.notificationsEnabled) {
+              const snippet = text.length > 100 ? `${text.substring(0, 100)}...` : text;
+              await sendMessageNotification(
+                recipient,
+                sender.name || sender.email,
+                conversationId,
+                snippet,
+                false // No attachments for socket messages for now
+              );
+            }
+          } catch (error) {
+            console.warn('Failed to send push notification for socket message:', error);
+          }
+        }
       } catch {
         socket.emit('error', { message: 'Failed to send message' });
       }
@@ -148,11 +182,13 @@ export function initializeSocketIO(httpServer: HTTPServer) {
             { $set: { isRead: true } },
           );
 
-          io.to(`conversation:${conversationId}`).emit('message:read', {
-            conversationId,
-            messageIds,
-            readBy: userId,
-          });
+          if (io) {
+            io.to(`conversation:${conversationId}`).emit('message:read', {
+              conversationId,
+              messageIds,
+              readBy: userId,
+            });
+          }
         } else {
           await MessageModel.updateMany(
             {
@@ -163,10 +199,12 @@ export function initializeSocketIO(httpServer: HTTPServer) {
             { $set: { isRead: true } },
           );
 
-          io.to(`conversation:${conversationId}`).emit('conversation:allRead', {
-            conversationId,
-            readBy: userId,
-          });
+          if (io) {
+            io.to(`conversation:${conversationId}`).emit('conversation:allRead', {
+              conversationId,
+              readBy: userId,
+            });
+          }
         }
       } catch {
         socket.emit('error', { message: 'Failed to mark messages as read' });
@@ -189,7 +227,13 @@ export function initializeSocketIO(httpServer: HTTPServer) {
         sockets.delete(socket.id);
         if (sockets.size === 0) {
           userPresenceMap.delete(userId);
-          io.emit('user:status', { userId, isOnline: false });
+          // Emit presence notification for users going offline
+          if (isWebPushEnabled()) {
+            emitPresenceNotification(userId, false).catch(console.warn);
+          }
+          if (io) {
+            io.emit('user:status', { userId, isOnline: false });
+          }
         }
       }
     });
@@ -200,4 +244,45 @@ export function initializeSocketIO(httpServer: HTTPServer) {
 
 export function getUserPresenceMap() {
   return userPresenceMap;
+}
+
+export function getIO(): Server | null {
+  return io;
+}
+
+export function isUserOnline(userId: string): boolean {
+  return userPresenceMap.has(userId);
+}
+
+async function emitPresenceNotification(userId: string, isOnline: boolean) {
+  if (!io || !isWebPushEnabled()) return;
+
+  try {
+    // Get user's contacts (participants in conversations with this user)
+    const conversations = await ConversationModel.find({
+      participantIds: userId,
+    }).lean();
+
+    const contactsSet = new Set<string>();
+    conversations.forEach((conv) => {
+      conv.participantIds.forEach((participantId) => {
+        if (participantId !== userId) {
+          contactsSet.add(participantId);
+        }
+      });
+    });
+
+    // Send presence notifications to all contacts
+    for (const contactId of contactsSet) {
+      const contact = await UserModel.findById(contactId);
+      if (contact && contact.notificationsEnabled && contact.webPushSubscriptions.length > 0) {
+        const user = await UserModel.findById(userId);
+        if (user) {
+          await sendPresenceNotification(contact, user.name || user.email, isOnline);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to send presence notifications:', error);
+  }
 }

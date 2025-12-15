@@ -1,0 +1,15 @@
+node_modules
+build
+dist
+coverage
+.client-cache
+.server-cache
+
+# Vite build output
+client/dist
+
+# Server build output
+server/dist
+
+# uploads
+server/uploads

@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
+import { ChatPage } from '../pages/ChatPage';
 import { LoginPage } from '../pages/LoginPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import { RegisterPage } from '../pages/RegisterPage';
@@ -22,7 +23,7 @@ export function AppRouter() {
 
       <Route element={<AuthGate />}>
         <Route path="/app" element={<AppLayout />}>
-          <Route index element={<Navigate to="profile" replace />} />
+          <Route index element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Route>

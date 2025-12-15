@@ -4,6 +4,7 @@ import {
   getMe,
   getUserById,
   updateMe,
+  searchUsers,
 } from '../controllers/users.controller';
 import { authGuard } from '../middleware/authGuard';
 import { avatarUpload } from '../middleware/uploadAvatar';
@@ -14,6 +15,7 @@ const router = Router();
 
 router.get('/me', authGuard, getMe);
 router.put('/me', authGuard, avatarUpload, validateBody(updateMeSchema), updateMe);
+router.get('/search', authGuard, searchUsers);
 router.get('/:id', getUserById);
 
 export default router;

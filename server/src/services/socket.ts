@@ -175,12 +175,12 @@ export function initializeSocketIO(httpServer: HTTPServer) {
 
     socket.on('user:typing', (data: { conversationId: string }) => {
       const { conversationId } = data;
-      socket.to(`conversation:${conversationId}`).emit('user:typing', { userId });
+      socket.to(`conversation:${conversationId}`).emit('user:typing', { userId, conversationId });
     });
 
     socket.on('user:stoppedTyping', (data: { conversationId: string }) => {
       const { conversationId } = data;
-      socket.to(`conversation:${conversationId}`).emit('user:stoppedTyping', { userId });
+      socket.to(`conversation:${conversationId}`).emit('user:stoppedTyping', { userId, conversationId });
     });
 
     socket.on('disconnect', () => {

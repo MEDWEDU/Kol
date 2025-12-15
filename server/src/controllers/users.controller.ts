@@ -90,3 +90,34 @@ export const getUserById: RequestHandler = asyncHandler(async (req, res) => {
     },
   });
 });
+
+export const searchUsers: RequestHandler = asyncHandler(async (req, res) => {
+  const { query } = req.query;
+
+  if (typeof query !== 'string' || !query) {
+    ok(res, { users: [] });
+    return;
+  }
+
+  // Case-insensitive search by name or email
+  const users = await UserModel.find({
+    $or: [
+      { name: { $regex: query, $options: 'i' } },
+      { email: { $regex: query, $options: 'i' } },
+    ],
+  })
+    .limit(20)
+    .lean();
+
+  ok(res, {
+    users: users.map((u) => ({
+      id: u._id.toString(),
+      name: u.name,
+      email: u.email,
+      organization: u.organization,
+      position: u.position,
+      bio: u.bio,
+      avatarUrl: u.avatarUrl,
+    })),
+  });
+});

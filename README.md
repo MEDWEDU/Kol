@@ -132,3 +132,43 @@ curl -i -b cookie.txt -X PUT \
 ```bash
 curl -i -b cookie.txt -X POST http://localhost:5000/api/auth/logout
 ```
+
+## API: Conversations & Messages
+
+Base URL: `http://localhost:5000/api`
+
+### Endpoints
+
+| Method | Path | Auth | Content-Type | Description |
+| --- | --- | --- | --- | --- |
+| GET | `/conversations` | Cookie | - | List all conversations for the current user. |
+| POST | `/conversations` | Cookie | `application/json` | Start a new conversation with another user. Body: `{ "participantId": "userId" }` |
+| GET | `/conversations/:conversationId/messages` | Cookie | - | Fetch paginated message history. Query: `?page=0&limit=50` |
+| PATCH | `/conversations/:conversationId/read` | Cookie | `application/json` | Mark all unread messages in conversation as read. Body: `{ "conversationId": "id" }` |
+
+### Socket.IO Events
+
+Connect to the Socket.IO server at `http://localhost:5000` with `reconnection: true` and credentials.
+
+#### Client → Server Events
+
+| Event | Payload | Description |
+| --- | --- | --- |
+| `join:conversation` | `conversationId: string` | Join a conversation room to receive real-time messages. |
+| `leave:conversation` | `conversationId: string` | Leave a conversation room. |
+| `message:send` | `{ conversationId, recipientId, text }` | Send a new message. |
+| `message:markRead` | `{ conversationId, messageIds?: string[] }` | Mark specific messages or all messages in conversation as read. |
+| `user:typing` | `{ conversationId }` | Notify participants that you're typing. |
+| `user:stoppedTyping` | `{ conversationId }` | Notify participants that you stopped typing. |
+
+#### Server → Client Events
+
+| Event | Payload | Description |
+| --- | --- | --- |
+| `message:new` | `{ id, conversationId, senderId, recipientId, text, attachments, isRead, createdAt }` | New message received in a joined conversation. |
+| `message:read` | `{ conversationId, messageIds, readBy }` | Specific messages marked as read. |
+| `conversation:allRead` | `{ conversationId, readBy }` | All messages in a conversation marked as read. |
+| `user:status` | `{ userId, isOnline: boolean }` | User online/offline status changed. |
+| `user:typing` | `{ userId }` | A participant is typing. |
+| `user:stoppedTyping` | `{ userId }` | A participant stopped typing. |
+| `error` | `{ message: string }` | Error message from the server. |

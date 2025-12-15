@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 
 import { HttpError } from './HttpError';
 
@@ -15,9 +15,13 @@ function getJwtSecret() {
 }
 
 export function signAccessToken(userId: string) {
-  return jwt.sign({ sub: userId } satisfies AccessTokenPayload, getJwtSecret(), {
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
-  });
+  return jwt.sign(
+    { sub: userId } satisfies AccessTokenPayload,
+    getJwtSecret(),
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+    } as SignOptions,
+  );
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {

@@ -48,11 +48,13 @@ const userSchema = new Schema(
 userSchema.index({ email: 1 }, { unique: true });
 
 userSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    ret.id = ret._id.toString();
-    delete ret._id;
-    delete ret.__v;
-    delete ret.passwordHash;
+  transform: (_doc, ret: Record<string, unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = ret as Record<string, any>;
+    obj.id = String(obj._id);
+    delete obj._id;
+    delete obj.__v;
+    delete obj.passwordHash;
     return ret;
   },
 });

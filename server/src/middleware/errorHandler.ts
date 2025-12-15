@@ -4,7 +4,7 @@ import { MulterError } from 'multer';
 
 import { HttpError } from '../utils/HttpError';
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, _req, res) => {
   let statusCode = 500;
   let message = err instanceof Error ? err.message : 'Unknown error';
   let details: unknown;
